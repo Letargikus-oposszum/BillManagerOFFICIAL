@@ -1,12 +1,11 @@
 const API_URL = "http://localhost:3000/bills";
 const billForm = document.getElementById("bill-form");
+const billsContainer = document.getElementById("bills-container");
 
 async function fetchBills() {
   try {
     const response = await fetch(API_URL);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     return await response.json();
   } catch (error) {
     console.error("Error fetching bills:", error);
@@ -14,38 +13,66 @@ async function fetchBills() {
   }
 }
 
+function createBillCard(bill, index) {
+  const card = document.createElement("div");
+  card.className = "bill-card";
+  if (bill.status === "storno") card.classList.add("storno");
+
+  card.innerHTML = `
+    <div class="bill-header">
+      <h3>Invoice #${bill.invoice_number}</h3>
+      ${bill.status === "storno" 
+        ? `<div class="status-label">STORNO</div>` 
+        : `<button class="storno-btn" data-id="${bill.id}">Storno</button>`}
+    </div>
+    <div class="bill-dates">
+      <div><strong>Issue Date:</strong> ${bill.issue_date}</div>
+      <div><strong>Fulfillment Date:</strong> ${bill.fulfillment_date}</div>
+      <div><strong>Payment Deadline:</strong> ${bill.payment_deadline}</div>
+    </div>
+    <div class="bill-info">
+      <div><strong>Issuer ID:</strong> ${bill.issuer_id}</div>
+      <div><strong>Customer ID:</strong> ${bill.customer_id}</div>
+      <div><strong>Total Amount:</strong> $${bill.total_amount.toFixed(2)}</div>
+      <div><strong>VAT Amount:</strong> $${bill.vat_amount.toFixed(2)}</div>
+    </div>
+  `;
+
+  return card;
+}
+
 async function displayBills() {
   const bills = await fetchBills();
-  const tableBody = document.querySelector("#bill-table tbody");
-  tableBody.innerHTML = "";
+  billsContainer.innerHTML = "";
 
-  bills.forEach((bill, index) => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${index + 1}</td>
-      <td>${bill.invoice_number}</td>
-      <td>${bill.issue_date}</td>
-      <td>${bill.fulfillment_date}</td>
-      <td>${bill.payment_deadline}</td>
-      <td>${bill.total_amount}</td>
-      <td>${bill.vat_amount}</td>
-      <td>${bill.issuer_id}</td>
-      <td>${bill.customer_id}</td>
-    `;
-    tableBody.appendChild(row);
+  bills.forEach((bill, i) => {
+    const card = createBillCard(bill, i);
+    billsContainer.appendChild(card);
   });
 }
-document.addEventListener("DOMContentLoaded", () => {
-  displayBills();
+
+billsContainer.addEventListener("click", async (e) => {
+  if (e.target.classList.contains("storno-btn")) {
+    const billId = e.target.dataset.id;
+    if (!confirm("Are you sure you want to storno this bill?")) return;
+
+    try {
+      const res = await fetch(`${API_URL}/${billId}/storno`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to storno bill");
+
+      alert("Bill stornoed successfully");
+      displayBills();
+    } catch (err) {
+      alert("Error stornoing bill: " + err.message);
+    }
+  }
 });
 
 billForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-
   const formData = new FormData(billForm);
   const bill = Object.fromEntries(formData.entries());
 
-  // Convert numeric fields
   bill.total_amount = parseFloat(bill.total_amount);
   bill.vat_amount = parseFloat(bill.vat_amount);
   bill.issuer_id = parseInt(bill.issuer_id);
@@ -54,17 +81,18 @@ billForm.addEventListener("submit", async (e) => {
   try {
     const res = await fetch(API_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bill),
     });
-
     if (!res.ok) throw new Error("Failed to create bill");
 
     billForm.reset();
-    loadBills(); // reload table
+    displayBills();
   } catch (err) {
     console.error("Error submitting bill:", err);
   }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  displayBills();
 });

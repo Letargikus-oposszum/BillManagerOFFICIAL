@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Invoice Manager</title>
   <link rel="stylesheet" href="Bill.css" />
 </head>
@@ -26,22 +26,9 @@
     </form>
 
     <h2>All Invoices</h2>
-    <table id="bill-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Invoice No.</th>
-          <th>Issue Date</th>
-          <th>Fulfillment</th>
-          <th>Deadline</th>
-          <th>Total</th>
-          <th>VAT</th>
-          <th>Issuer</th>
-          <th>Customer</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div id="bills-container">
+      <!-- Bills will be rendered here as cards -->
+    </div>
   </div>
 
   <script src="BillScript.js"></script>

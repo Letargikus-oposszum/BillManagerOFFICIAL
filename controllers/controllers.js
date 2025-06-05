@@ -1,10 +1,12 @@
 import dbPromise from "../db/db.js";
 
+// Get all active bills only (ignore storno)
 export const getBill = async (req, res) => {
   const db = await dbPromise;
-  const rows = await db.all("SELECT * FROM Bills");
+  const rows = await db.all("SELECT * FROM Bills WHERE status = 'active'");
 
   const result = rows.map(row => ({
+    id: row.id,
     issuer_id: row.issuer_id,
     customer_id: row.customer_id,
     invoice_number: row.invoice_number,
@@ -13,12 +15,13 @@ export const getBill = async (req, res) => {
     payment_deadline: row.payment_deadline,
     total_amount: row.total_amount,
     vat_amount: row.vat_amount,
-    Bills: JSON.parse(row.Bill_list),
+    status: row.status,
   }));
 
   res.status(200).json(result);
 };
 
+// Get bill by ID regardless of status
 export const getBillById = async (req, res) => {
   const db = await dbPromise;
   const id = parseInt(req.params.id);
@@ -27,6 +30,7 @@ export const getBillById = async (req, res) => {
   if (!row) return res.status(404).json({ message: "Bill not found" });
 
   res.status(200).json({
+    id: row.id,
     issuer_id: row.issuer_id,
     customer_id: row.customer_id,
     invoice_number: row.invoice_number,
@@ -35,10 +39,11 @@ export const getBillById = async (req, res) => {
     payment_deadline: row.payment_deadline,
     total_amount: row.total_amount,
     vat_amount: row.vat_amount,
-    Bills: JSON.parse(row.Bill_list),
+    status: row.status,
   });
 };
 
+// Create bill (default status = active)
 export const createBill = async (req, res) => {
   const db = await dbPromise;
   const {
@@ -61,8 +66,8 @@ export const createBill = async (req, res) => {
 
   const result = await db.run(
     `INSERT INTO Bills 
-     (issuer_id, customer_id, invoice_number, issue_date, fulfillment_date, payment_deadline, total_amount, vat_amount)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     (issuer_id, customer_id, invoice_number, issue_date, fulfillment_date, payment_deadline, total_amount, vat_amount, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')`,
     [
       issuer_id,
       customer_id,
@@ -79,57 +84,19 @@ export const createBill = async (req, res) => {
   res.status(201).json(newBill);
 };
 
-// Update a bill
-export const updateBill = async (req, res) => {
-  const db = await dbPromise;
-  const id = parseInt(req.params.id);
-  const {
-    issuer_id,
-    customer_id,
-    invoice_number,
-    issue_date,
-    fulfillment_date,
-    payment_deadline,
-    total_amount,
-    vat_amount,
-  } = req.body;
-
-  const check = await db.get("SELECT * FROM Bills WHERE id = ?", [id]);
-  if (!check) return res.status(404).json({ message: "Bill not found" });
-
-  await db.run(
-    `UPDATE Bills SET 
-     issuer_id = ?, customer_id = ?, invoice_number = ?, issue_date = ?, 
-     fulfillment_date = ?, payment_deadline = ?, total_amount = ?, vat_amount = ?
-     WHERE id = ?`,
-    [
-      issuer_id,
-      customer_id,
-      invoice_number,
-      issue_date,
-      fulfillment_date,
-      payment_deadline,
-      total_amount,
-      vat_amount,
-      id,
-    ]
-  );
-
-  const updated = await db.get("SELECT * FROM Bills WHERE id = ?", [id]);
-  res.status(200).json(updated);
-};
-
-// Delete a bill
-export const deleteBill = async (req, res) => {
+// Storno bill (mark as canceled instead of deleting)
+export const stornoBill = async (req, res) => {
   const db = await dbPromise;
   const id = parseInt(req.params.id);
 
-  const check = await db.get("SELECT * FROM Bills WHERE id = ?", [id]);
-  if (!check) {
+  const bill = await db.get("SELECT * FROM Bills WHERE id = ?", [id]);
+  if (!bill) {
     return res.status(404).json({ message: "Bill not found" });
   }
 
-  await db.run("DELETE FROM Bills WHERE id = ?", [id]);
-  res.status(200).json({ message: "Delete successful" });
+  // Update status to 'storno'
+  await db.run("UPDATE Bills SET status = 'storno' WHERE id = ?", [id]);
+
+  res.status(200).json({ message: `Bill ID ${id} has been stornoed (canceled).` });
 };
 

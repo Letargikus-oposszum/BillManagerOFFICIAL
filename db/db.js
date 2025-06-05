@@ -31,6 +31,7 @@ const initDB = async () => {
       payment_deadline TEXT NOT NULL,
       total_amount REAL NOT NULL,
       vat_amount REAL NOT NULL,
+      status TEXT DEFAULT 'active',
       FOREIGN KEY (issuer_id) REFERENCES parties(id),
       FOREIGN KEY (customer_id) REFERENCES parties(id)
     );
